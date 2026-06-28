@@ -1,0 +1,12 @@
+anthropic
+python-dotenv
+tavily-python
+chromadb
+sentence-transformers
+pymupdf
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-anthropic
+langchain-community

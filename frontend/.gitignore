@@ -1,0 +1,4 @@
+rm -rf frontend/.git
+git rm --cached frontend
+git add frontend/
+git status

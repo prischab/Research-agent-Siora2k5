@@ -1,0 +1,7 @@
+Retrieval-Augmented Generation (RAG) is a technique that combines a language model with a search system. Instead of relying only on what the model learned during training, RAG retrieves relevant documents and uses them to ground its answers in real sources.
+
+An AI agent is a system where a language model decides which actions to take. It can choose to use tools such as web search, a calculator, or document retrieval, and it loops through these steps until it can answer the question.
+
+Vector databases like ChromaDB store text as numerical embeddings. This allows searching by meaning rather than exact keywords, so a query like "how do agents work" can find relevant text even if those exact words don't appear.
+
+Evaluation is critical for AI systems. Without measuring whether an agent picks the right tools and gives correct answers, you cannot trust it in production.
