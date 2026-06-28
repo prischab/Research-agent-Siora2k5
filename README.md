@@ -4,6 +4,9 @@ An AI agent that autonomously selects and chains tools — web search, calculati
 
 The agent is implemented **two ways** — from scratch and with LangGraph — to demonstrate both the underlying mechanics of agentic loops and the production framework pattern.
 
+**🔗 Live demo:** [research-agent-siora2k5.vercel.app](https://research-agent-siora2k5.vercel.app)
+*(Frontend on Vercel, backend on Render. The backend free tier sleeps after inactivity — the first request may take ~50 seconds to wake it.)*
+
 ---
 
 ## What it does
@@ -46,6 +49,8 @@ It chains tools when needed. For example, *"What is the population of Japan, and
                                                                                   (ChromaDB RAG)
 ```
 
+**Deployment:** Frontend on Vercel, FastAPI backend on Render. Embeddings run through a hosted API (Cohere) rather than a local model, keeping the backend within serverless memory limits.
+
 ---
 
 ## Two implementations of the agent
@@ -66,10 +71,10 @@ Both use the same three tools and produce the same behavior — the contrast sho
 | LLM | Claude (Anthropic API) |
 | Agent frameworks | Custom loop + LangGraph |
 | Web search | Tavily |
-| Retrieval (RAG) | ChromaDB + sentence-transformers |
+| Retrieval (RAG) | ChromaDB + Cohere embeddings |
 | Vision | Claude multimodal |
-| Backend | FastAPI |
-| Frontend | Next.js + Tailwind CSS |
+| Backend | FastAPI (deployed on Render) |
+| Frontend | Next.js + Tailwind CSS (deployed on Vercel) |
 | Evaluation | Custom pytest-style harness |
 
 ---
@@ -108,7 +113,7 @@ research-agent/
 
 ## Running locally
 
-**Prerequisites:** Python 3.10+, Node.js, and API keys for Anthropic and Tavily.
+**Prerequisites:** Python 3.10+, Node.js, and API keys for Anthropic, Tavily, and Cohere.
 
 ```bash
 # 1. Backend setup
@@ -117,7 +122,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Add your keys: copy .env.example to .env and fill in
-#    ANTHROPIC_API_KEY and TAVILY_API_KEY
+#    ANTHROPIC_API_KEY, TAVILY_API_KEY, and COHERE_API_KEY
 
 # 3. Run the backend
 uvicorn api:app
@@ -134,7 +139,7 @@ npm run dev
 
 ## How it was built
 
-Built tool-first: each tool was written and tested in isolation, then the agent loop was implemented by hand to understand the tool-calling mechanics, then rebuilt with LangGraph. The backend wraps the agent over HTTP, and the Next.js frontend adds chat history, document upload, image understanding, and a clean interface.
+Built tool-first: each tool was written and tested in isolation, then the agent loop was implemented by hand to understand the tool-calling mechanics, then rebuilt with LangGraph. The backend wraps the agent over HTTP, and the Next.js frontend adds chat history, document upload, image understanding, and a clean interface. For deployment, the embedding step was moved from a local model to a hosted API to fit the backend within free-tier memory limits.
 
 ---
 
@@ -143,7 +148,7 @@ Built tool-first: each tool was written and tested in isolation, then the agent 
 - Persist chat history server-side (currently browser storage)
 - Add streaming responses (token-by-token)
 - Expand the document store with metadata filtering
-- Deploy with an API-based embedding model to reduce server memory
+- Keep the deployed backend warm to avoid cold-start latency
 
 ---
 
