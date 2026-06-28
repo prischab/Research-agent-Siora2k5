@@ -5,6 +5,7 @@
 import os
 import base64
 import tempfile
+from datetime import date
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -101,7 +102,9 @@ def health():
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     """Receive a question, run the agent, return the answer."""
-    result = agent.invoke({"messages": [{"role": "user", "content": req.message}]})
+    today = date.today().strftime("%A, %B %d, %Y")
+    message = f"[Today's date: {today}]\n\n{req.message}"
+    result = agent.invoke({"messages": [{"role": "user", "content": message}]})
     answer = result["messages"][-1].content
     return ChatResponse(answer=answer)
 
