@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(grep -E \"\\\\.env$\")",
+      "Bash(python3 -c 'import ast, sys *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import ast; src=open\\('api.py'\\).read\\(\\); tree=ast.parse\\(src\\); imports=[n for n in ast.walk\\(tree\\) if isinstance\\(n,\\(ast.Import,ast.ImportFrom\\)\\)]; [print\\(ast.dump\\(i\\)\\) for i in imports[:10]]\")",
+      "Bash(git -C /Users/ASUS/Desktop/research-agent status --short)",
+      "Bash(git -C /Users/ASUS/Desktop/research-agent check-ignore -v frontend/node_modules)"
     ]
   }
 }

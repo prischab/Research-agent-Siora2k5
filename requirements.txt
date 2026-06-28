@@ -2,7 +2,7 @@ anthropic
 python-dotenv
 tavily-python
 chromadb
-sentence-transformers
+cohere
 pymupdf
 fastapi
 uvicorn

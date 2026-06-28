@@ -1,43 +1,65 @@
 # tools/retrieval.py
-# Document retrieval tool (RAG) — now supports adding documents on the fly.
+# Document retrieval (RAG) using Cohere embeddings + ChromaDB.
+# Cohere runs as an API call, so no heavy local model loads into memory
+# (this is what lets it fit in Render's 512MB free tier).
 
 import os
-import glob
+import cohere
 import chromadb
-from sentence_transformers import SentenceTransformer
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-chroma_client = chromadb.Client()
-collection = chroma_client.get_or_create_collection("docs")
+# Cohere client reads COHERE_API_KEY from the environment
+_co = cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
+_EMBED_MODEL = "embed-english-v3.0"
 
-# A simple counter so every chunk gets a unique id
-_chunk_counter = 0
+# In-memory Chroma collection (resets on restart, which is fine for a demo)
+_client = chromadb.Client()
+_collection = _client.get_or_create_collection("documents")
 
-
-def _add_chunks(chunks):
-    """Embed and store a list of text chunks."""
-    global _chunk_counter
-    for chunk in chunks:
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-        embedding = embedder.encode(chunk).tolist()
-        collection.add(
-            ids=[f"chunk_{_chunk_counter}"],
-            embeddings=[embedding],
-            documents=[chunk],
-        )
-        _chunk_counter += 1
+# Simple counter so each chunk gets a unique id
+_counter = {"n": 0}
 
 
-def ingest_text(text: str):
-    """Add raw text (split into paragraph chunks) to the collection. Returns chunk count."""
-    chunks = [c for c in text.split("\n\n") if c.strip()]
+def _embed(texts: list[str], input_type: str) -> list[list[float]]:
+    """Turn a list of texts into embeddings via the Cohere API.
+    input_type is 'search_document' for stored chunks, 'search_query' for queries."""
+    result = _co.embed(
+        texts=texts,
+        model=_EMBED_MODEL,
+        input_type=input_type,
+        embedding_types=["float"],
+    )
+    return result.embeddings.float
+
+
+def _add_chunks(chunks: list[str]):
+    """Embed chunks and store them in ChromaDB."""
+    if not chunks:
+        return
+    embeddings = _embed(chunks, "search_document")
+    ids = []
+    for _ in chunks:
+        ids.append(f"chunk_{_counter['n']}")
+        _counter["n"] += 1
+    _collection.add(documents=chunks, embeddings=embeddings, ids=ids)
+
+
+def ingest_text(text: str) -> int:
+    """Chunk raw text and add it to the store. Returns chunk count."""
+    text = text.strip()
+    if not text:
+        return 0
+    chunk_size = 800
+    overlap = 100
+    chunks = []
+    start = 0
+    while start < len(text):
+        chunks.append(text[start:start + chunk_size])
+        start += chunk_size - overlap
     _add_chunks(chunks)
     return len(chunks)
 
 
-def ingest_pdf(filepath: str):
+def ingest_pdf(filepath: str) -> int:
     """Extract text from a PDF and add it in fixed-size chunks. Returns chunk count."""
     import fitz  # PyMuPDF
     doc = fitz.open(filepath)
@@ -45,48 +67,22 @@ def ingest_pdf(filepath: str):
     for page in doc:
         full_text += page.get_text() + "\n"
     doc.close()
-
-    full_text = full_text.strip()
-    if not full_text:
-        return 0
-
-    chunk_size = 800
-    overlap = 100
-    chunks = []
-    start = 0
-    while start < len(full_text):
-        chunk = full_text[start:start + chunk_size]
-        chunks.append(chunk)
-        start += chunk_size - overlap
-
-    _add_chunks(chunks)
-    return len(chunks)
-
-def _load_initial_docs():
-    """Index any .txt files already in docs/ at startup."""
-    for filepath in glob.glob("docs/*.txt"):
-        with open(filepath, "r") as f:
-            ingest_text(f.read())
+    return ingest_text(full_text)
 
 
-_load_initial_docs()
+def retrieve_docs(query: str, k: int = 4) -> str:
+    """Find the most relevant chunks for a query. Returns them as joined text."""
+    count = _collection.count()
+    if count == 0:
+        return "No documents have been uploaded yet."
 
+    query_embedding = _embed([query], "search_query")[0]
 
-def retrieve_docs(query: str) -> str:
-    """Search the indexed documents for text relevant to the query."""
-    try:
-        if collection.count() == 0:
-            return "No documents have been added yet."
-        query_embedding = embedder.encode(query).tolist()
-        results = collection.query(query_embeddings=[query_embedding], n_results=3)
-        docs = results.get("documents", [[]])[0]
-        if not docs:
-            return "No relevant documents found."
-        return "\n\n".join(f"- {d}" for d in docs)
-    except Exception as e:
-        return f"Error during retrieval: {e}"
-
-
-if __name__ == "__main__":
-    print(f"Indexed {collection.count()} chunks from docs/")
-    print(retrieve_docs("what is a vector database"))
+    results = _collection.query(
+        query_embeddings=[query_embedding],
+        n_results=min(k, count),
+    )
+    docs = results.get("documents", [[]])[0]
+    if not docs:
+        return "No relevant content found in the uploaded documents."
+    return "\n\n---\n\n".join(docs)
